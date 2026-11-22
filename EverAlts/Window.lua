@@ -182,7 +182,6 @@ local function CreateTab(index)
     tab:SetScript("OnClick", function(self)
         activeTab = index
         UpdateTabVisuals()
-        self:ClearFocus()
         if scroll then
             scroll:SetVerticalScroll(0)
         end
