@@ -1,6 +1,13 @@
 local WINDOW_WIDTH, WINDOW_HEIGHT = 740, 530
 local ROW_HEIGHT = 26
 
+local WINDOW_BACKDROP = {
+    bgFile = "Interface\\Buttons\\WHITE8x8",
+    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+    edgeSize = 16,
+    insets = {left = 4, right = 4, top = 4, bottom = 4}
+}
+
 local NATIVE_BACKDROP = {
     bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
     edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
@@ -10,12 +17,12 @@ local NATIVE_BACKDROP = {
     insets = {left = 4, right = 4, top = 4, bottom = 4}
 }
 
-local C_BG_MAIN = {0.21, 0.21, 0.23, 1.00}
-local C_BG_PANEL = {0.00, 0.00, 0.00, 0.72}
-local C_BG_HEADER = {0.12, 0.08, 0.025, 1.00}
+local C_BG_MAIN = {0.25, 0.25, 0.27, 1.00}
+local C_BG_PANEL = {0.12, 0.12, 0.13, 0.92}
+local C_BG_HEADER = {0.18, 0.18, 0.20, 1.00}
 local C_BORDER = {1.00, 0.82, 0.00, 0.30}
 local C_ACCENT = {1.00, 0.82, 0.00, 1.00}
-local C_ACCENT_DIM = {0.32, 0.23, 0.04, 0.75}
+local C_ACCENT_DIM = {0.22, 0.19, 0.11, 0.95}
 
 local sortByCount = false
 local pendingDeleteChar = nil
@@ -49,7 +56,7 @@ window:SetMovable(true)
 window:EnableMouse(true)
 window:SetClampedToScreen(true)
 window:SetFrameStrata("HIGH")
-window:SetBackdrop(NATIVE_BACKDROP)
+window:SetBackdrop(WINDOW_BACKDROP)
 window:SetBackdropColor(unpack(C_BG_MAIN))
 window:SetBackdropBorderColor(unpack(C_BORDER))
 window:RegisterForDrag("LeftButton")
@@ -74,7 +81,7 @@ local titleBar = CreateFrame("Frame", nil, window, "BackdropTemplate")
 titleBar:SetPoint("TOPLEFT", 1, -1)
 titleBar:SetPoint("TOPRIGHT", -1, -1)
 titleBar:SetHeight(32)
-titleBar:SetBackdrop(NATIVE_BACKDROP)
+titleBar:SetBackdrop(WINDOW_BACKDROP)
 titleBar:SetBackdropColor(unpack(C_BG_HEADER))
 titleBar:SetBackdropBorderColor(unpack(C_BORDER))
 
@@ -116,7 +123,7 @@ local sidebarFooter = CreateFrame("Frame", nil, sidebar, "BackdropTemplate")
 sidebarFooter:SetPoint("BOTTOMLEFT", 0, 0)
 sidebarFooter:SetPoint("BOTTOMRIGHT", 0, 0)
 sidebarFooter:SetHeight(30)
-sidebarFooter:SetBackdrop(NATIVE_BACKDROP)
+sidebarFooter:SetBackdrop(WINDOW_BACKDROP)
 sidebarFooter:SetBackdropColor(unpack(C_BG_HEADER))
 sidebarFooter:SetBackdropBorderColor(unpack(C_BORDER))
 
@@ -229,7 +236,7 @@ local charBanner = CreateFrame("Frame", nil, contentPanel, "BackdropTemplate")
 charBanner:SetPoint("TOPLEFT", navBar, "BOTTOMLEFT", 0, -6)
 charBanner:SetPoint("TOPRIGHT", navBar, "BOTTOMRIGHT", 0, -6)
 charBanner:SetHeight(28)
-charBanner:SetBackdrop(NATIVE_BACKDROP)
+charBanner:SetBackdrop(WINDOW_BACKDROP)
 charBanner:SetBackdropColor(unpack(C_BG_HEADER))
 charBanner:SetBackdropBorderColor(unpack(C_BORDER))
 
@@ -369,16 +376,13 @@ local function RefreshSidebar()
     for _, key in ipairs(keys) do
         local btn = charButtons[i]
         if not btn then
-            btn = CreateFrame("Button", nil, sidebarContent, "UIPanelButtonTemplate")
+            btn = CreateFrame("Button", nil, sidebarContent, "BackdropTemplate")
             btn:SetSize(147, 32)
             btn:SetPoint("TOPLEFT", sidebarContent, "TOPLEFT", 0, -(i - 1) * 34)
-            btn:SetText("")
+            btn:SetBackdrop(NATIVE_BACKDROP)
+            btn:SetBackdropColor(unpack(C_BG_PANEL))
+            btn:SetBackdropBorderColor(unpack(C_BORDER))
             btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-            btn.selectedBg = btn:CreateTexture(nil, "ARTWORK")
-            btn.selectedBg:SetPoint("TOPLEFT", 4, -4)
-            btn.selectedBg:SetPoint("BOTTOMRIGHT", -4, 4)
-            btn.selectedBg:SetColorTexture(unpack(C_ACCENT_DIM))
-            btn.selectedBg:Hide()
             btn.bar = btn:CreateTexture(nil, "OVERLAY")
             btn.bar:SetWidth(3)
             btn.bar:SetPoint("TOPLEFT", 1, -1)
@@ -395,6 +399,20 @@ local function RefreshSidebar()
             btn.subText:SetPoint("RIGHT", -6, 0)
             btn.subText:SetJustifyH("LEFT")
             btn.subText:SetWordWrap(false)
+            btn:SetScript("OnEnter", function(self)
+                if AlteregoWindow.selectedChar ~= self.charKey then
+                    self:SetBackdropColor(unpack(C_BG_HEADER))
+                end
+            end)
+            btn:SetScript("OnLeave", function(self)
+                if AlteregoWindow.selectedChar == self.charKey then
+                    self:SetBackdropColor(unpack(C_ACCENT_DIM))
+                    self:SetBackdropBorderColor(unpack(C_ACCENT))
+                else
+                    self:SetBackdropColor(unpack(C_BG_PANEL))
+                    self:SetBackdropBorderColor(unpack(C_BORDER))
+                end
+            end)
             btn:SetScript("OnClick", function(self, button)
                 if button == "RightButton" and IsShiftKeyDown() and self.charKey ~= "ALL" then
                     pendingDeleteChar = self.charKey
@@ -425,10 +443,12 @@ local function RefreshSidebar()
             btn.subText:SetText(string.format("Lvl %d  •  %s", charData.level or 1, FormatGoldCompact(charData.gold)))
         end
         if isSelected then
-            btn.selectedBg:Show()
+            btn:SetBackdropColor(unpack(C_ACCENT_DIM))
+            btn:SetBackdropBorderColor(unpack(C_ACCENT))
             btn.bar:Show()
         else
-            btn.selectedBg:Hide()
+            btn:SetBackdropColor(unpack(C_BG_PANEL))
+            btn:SetBackdropBorderColor(unpack(C_BORDER))
             btn.bar:Hide()
         end
         btn:Show()
