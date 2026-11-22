@@ -1,0 +1,754 @@
+local WINDOW_WIDTH, WINDOW_HEIGHT = 740, 530
+local ROW_HEIGHT = 26
+
+local FLAT_BACKDROP = {
+    bgFile = "Interface\\Buttons\\WHITE8x8",
+    edgeFile = "Interface\\Buttons\\WHITE8x8",
+    edgeSize = 1
+}
+
+-- Color Palette (Sleek ElvUI / Modern Dark Style)
+local C_BG_MAIN = {0.07, 0.07, 0.09, 0.95}
+local C_BG_PANEL = {0.05, 0.05, 0.07, 0.90}
+local C_BG_HEADER = {0.10, 0.10, 0.13, 1.00}
+local C_BORDER = {0.22, 0.23, 0.28, 1.00}
+local C_ACCENT = {0.25, 0.55, 0.95, 1.00}
+local C_ACCENT_DIM = {0.15, 0.30, 0.52, 0.55}
+
+local sortByCount = false
+local pendingDeleteChar = nil
+
+StaticPopupDialogs["ALTEREGO_DELETE_CHAR"] = {
+    text = "Delete saved EverAlts data for %s?",
+    button1 = YES,
+    button2 = NO,
+    OnAccept = function()
+        if pendingDeleteChar and Alterego_DeleteCharacter then
+            Alterego_DeleteCharacter(pendingDeleteChar)
+            if AlteregoWindow.selectedChar == pendingDeleteChar then
+                AlteregoWindow.selectedChar = "ALL"
+            end
+            pendingDeleteChar = nil
+            AlteregoWindow.RefreshSidebar()
+            AlteregoWindow.RefreshContent()
+        end
+    end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3
+}
+
+-- ===== Main Frameless Window =====
+local window = CreateFrame("Frame", "EverAltsMainWindow", UIParent, "BackdropTemplate")
+window:SetSize(WINDOW_WIDTH, WINDOW_HEIGHT)
+window:SetPoint("CENTER")
+window:SetMovable(true)
+window:EnableMouse(true)
+window:SetClampedToScreen(true)
+window:SetFrameStrata("HIGH")
+window:SetBackdrop(FLAT_BACKDROP)
+window:SetBackdropColor(unpack(C_BG_MAIN))
+window:SetBackdropBorderColor(unpack(C_BORDER))
+window:RegisterForDrag("LeftButton")
+window:SetScript("OnDragStart", window.StartMoving)
+window:SetScript("OnDragStop", function(self)
+    self:StopMovingOrSizing()
+    if AlteregoDB then
+        local point, _, relPoint, x, y = self:GetPoint()
+        AlteregoDB.windowPos = {
+            point = point,
+            relPoint = relPoint,
+            x = x,
+            y = y
+        }
+    end
+end)
+window:Hide()
+tinsert(UISpecialFrames, "EverAltsMainWindow")
+
+-- ===== Title Bar =====
+local titleBar = CreateFrame("Frame", nil, window, "BackdropTemplate")
+titleBar:SetPoint("TOPLEFT", 1, -1)
+titleBar:SetPoint("TOPRIGHT", -1, -1)
+titleBar:SetHeight(32)
+titleBar:SetBackdrop(FLAT_BACKDROP)
+titleBar:SetBackdropColor(unpack(C_BG_HEADER))
+titleBar:SetBackdropBorderColor(unpack(C_BORDER))
+
+local titleIcon = titleBar:CreateTexture(nil, "ARTWORK")
+titleIcon:SetSize(18, 18)
+titleIcon:SetPoint("LEFT", 10, 0)
+titleIcon:SetTexture("Interface\\Icons\\INV_Misc_Bag_10")
+titleIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+
+local titleText = titleBar:CreateFontString(nil, "OVERLAY", "GameFontNormalMed2")
+titleText:SetPoint("LEFT", titleIcon, "RIGHT", 8, 0)
+titleText:SetText("|cffffffffEverAlts|r  |cff778899Alt Manager|r")
+
+-- Custom Flat Close Button
+local closeBtn = CreateFrame("Button", nil, titleBar, "BackdropTemplate")
+closeBtn:SetSize(24, 24)
+closeBtn:SetPoint("RIGHT", -5, 0)
+closeBtn:SetBackdrop(FLAT_BACKDROP)
+closeBtn:SetBackdropColor(0.14, 0.14, 0.17, 1)
+closeBtn:SetBackdropBorderColor(unpack(C_BORDER))
+
+closeBtn.text = closeBtn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+closeBtn.text:SetPoint("CENTER", 0, 1)
+closeBtn.text:SetText("x")
+closeBtn.text:SetTextColor(0.8, 0.8, 0.8)
+
+closeBtn:SetScript("OnEnter", function(self)
+    self:SetBackdropColor(0.75, 0.18, 0.18, 1)
+    self.text:SetTextColor(1, 1, 1)
+end)
+closeBtn:SetScript("OnLeave", function(self)
+    self:SetBackdropColor(0.14, 0.14, 0.17, 1)
+    self.text:SetTextColor(0.8, 0.8, 0.8)
+end)
+closeBtn:SetScript("OnClick", function()
+    window:Hide()
+end)
+
+-- ===== Left Sidebar (Characters + Total Gold) =====
+local sidebar = CreateFrame("Frame", nil, window, "BackdropTemplate")
+sidebar:SetPoint("TOPLEFT", titleBar, "BOTTOMLEFT", 8, -8)
+sidebar:SetPoint("BOTTOMLEFT", window, "BOTTOMLEFT", 9, 9)
+sidebar:SetWidth(180)
+sidebar:SetBackdrop(FLAT_BACKDROP)
+sidebar:SetBackdropColor(unpack(C_BG_PANEL))
+sidebar:SetBackdropBorderColor(unpack(C_BORDER))
+
+local sidebarHeader = sidebar:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+sidebarHeader:SetPoint("TOPLEFT", 10, -8)
+sidebarHeader:SetText("|cff8899aaCHARACTERS|r")
+
+local sidebarHint = sidebar:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+sidebarHint:SetPoint("TOPRIGHT", -8, -8)
+sidebarHint:SetText("Shift+R-Click: Del")
+
+local sidebarFooter = CreateFrame("Frame", nil, sidebar, "BackdropTemplate")
+sidebarFooter:SetPoint("BOTTOMLEFT", 0, 0)
+sidebarFooter:SetPoint("BOTTOMRIGHT", 0, 0)
+sidebarFooter:SetHeight(30)
+sidebarFooter:SetBackdrop(FLAT_BACKDROP)
+sidebarFooter:SetBackdropColor(unpack(C_BG_HEADER))
+sidebarFooter:SetBackdropBorderColor(unpack(C_BORDER))
+
+local totalGoldText = sidebarFooter:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+totalGoldText:SetPoint("LEFT", 8, 0)
+totalGoldText:SetPoint("RIGHT", -8, 0)
+totalGoldText:SetJustifyH("RIGHT")
+
+local sidebarScroll = CreateFrame("ScrollFrame", "AlteregoCharScroll", sidebar, "UIPanelScrollFrameTemplate")
+sidebarScroll:SetPoint("TOPLEFT", 6, -24)
+sidebarScroll:SetPoint("BOTTOMRIGHT", -24, 34)
+
+local sidebarContent = CreateFrame("Frame", nil, sidebarScroll)
+sidebarContent:SetSize(147, 1)
+sidebarScroll:SetScrollChild(sidebarContent)
+
+-- ===== Right Content Area =====
+local contentPanel = CreateFrame("Frame", nil, window)
+contentPanel:SetPoint("TOPLEFT", sidebar, "TOPRIGHT", 8, 0)
+contentPanel:SetPoint("BOTTOMRIGHT", window, "BOTTOMRIGHT", -9, 9)
+
+-- Top Navigation Bar (Tabs + Sort + Search)
+local navBar = CreateFrame("Frame", nil, contentPanel)
+navBar:SetPoint("TOPLEFT", contentPanel, "TOPLEFT", 0, 0)
+navBar:SetPoint("TOPRIGHT", contentPanel, "TOPRIGHT", 0, 0)
+navBar:SetHeight(28)
+
+local tabs = {}
+local tabNames = {"Currencies", "Inventory", "Professions"}
+local activeTab = 1
+
+local scroll -- forward declare for scroll reset
+
+local function UpdateTabVisuals()
+    for i, t in ipairs(tabs) do
+        if i == activeTab then
+            t:SetBackdropColor(0.14, 0.22, 0.34, 1)
+            t:SetBackdropBorderColor(unpack(C_ACCENT))
+            t.accent:Show()
+            t.label:SetTextColor(1, 1, 1)
+        else
+            t:SetBackdropColor(0.08, 0.08, 0.11, 1)
+            t:SetBackdropBorderColor(unpack(C_BORDER))
+            t.accent:Hide()
+            t.label:SetTextColor(0.65, 0.68, 0.75)
+        end
+    end
+end
+
+local function CreateTab(index)
+    local tab = CreateFrame("Button", "AlteregoTab" .. index, navBar, "BackdropTemplate")
+    tab:SetSize(88, 26)
+    if index == 1 then
+        tab:SetPoint("LEFT", navBar, "LEFT", 0, 0)
+    else
+        tab:SetPoint("LEFT", tabs[index - 1], "RIGHT", 4, 0)
+    end
+
+    tab:SetBackdrop(FLAT_BACKDROP)
+
+    tab.accent = tab:CreateTexture(nil, "OVERLAY")
+    tab.accent:SetHeight(2)
+    tab.accent:SetPoint("BOTTOMLEFT", 1, 1)
+    tab.accent:SetPoint("BOTTOMRIGHT", -1, 1)
+    tab.accent:SetColorTexture(unpack(C_ACCENT))
+    tab.accent:Hide()
+
+    tab.label = tab:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    tab.label:SetPoint("CENTER", 0, 1)
+    tab.label:SetText(tabNames[index])
+
+    tab:SetScript("OnEnter", function(self)
+        if activeTab ~= index then
+            self:SetBackdropColor(0.12, 0.14, 0.19, 1)
+            self.label:SetTextColor(0.9, 0.9, 0.9)
+        end
+    end)
+    tab:SetScript("OnLeave", function(self)
+        if activeTab ~= index then
+            self:SetBackdropColor(0.08, 0.08, 0.11, 1)
+            self.label:SetTextColor(0.65, 0.68, 0.75)
+        end
+    end)
+    tab:SetScript("OnClick", function()
+        activeTab = index
+        UpdateTabVisuals()
+        if scroll then
+            scroll:SetVerticalScroll(0)
+        end
+        AlteregoWindow.RefreshContent()
+    end)
+
+    tabs[index] = tab
+    return tab
+end
+
+for i = 1, #tabNames do
+    CreateTab(i)
+end
+UpdateTabVisuals()
+
+-- Search Box
+local searchBox = CreateFrame("EditBox", "AlteregoSearchBox", navBar, "SearchBoxTemplate")
+searchBox:SetSize(165, 22)
+searchBox:SetPoint("RIGHT", navBar, "RIGHT", -2, 0)
+searchBox:SetAutoFocus(false)
+searchBox:SetScript("OnTextChanged", function()
+    if scroll then
+        scroll:SetVerticalScroll(0)
+    end
+    AlteregoWindow.RefreshContent()
+end)
+searchBox:SetScript("OnEscapePressed", function(self)
+    self:ClearFocus()
+end)
+
+-- Sort Toggle Button
+local sortBtn = CreateFrame("Button", nil, navBar, "BackdropTemplate")
+sortBtn:SetSize(74, 24)
+sortBtn:SetPoint("RIGHT", searchBox, "LEFT", -6, 0)
+sortBtn:SetBackdrop(FLAT_BACKDROP)
+sortBtn:SetBackdropColor(0.08, 0.08, 0.11, 1)
+sortBtn:SetBackdropBorderColor(unpack(C_BORDER))
+
+sortBtn.label = sortBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+sortBtn.label:SetPoint("CENTER")
+sortBtn.label:SetText("Sort: Name")
+sortBtn.label:SetTextColor(0.8, 0.85, 0.9)
+
+sortBtn:SetScript("OnClick", function(self)
+    sortByCount = not sortByCount
+    self.label:SetText(sortByCount and "Sort: Qty" or "Sort: Name")
+    AlteregoWindow.RefreshContent()
+end)
+
+-- Character Info Banner
+local charBanner = CreateFrame("Frame", nil, contentPanel, "BackdropTemplate")
+charBanner:SetPoint("TOPLEFT", navBar, "BOTTOMLEFT", 0, -6)
+charBanner:SetPoint("TOPRIGHT", navBar, "BOTTOMRIGHT", 0, -6)
+charBanner:SetHeight(28)
+charBanner:SetBackdrop(FLAT_BACKDROP)
+charBanner:SetBackdropColor(unpack(C_BG_HEADER))
+charBanner:SetBackdropBorderColor(unpack(C_BORDER))
+
+local charBannerName = charBanner:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+charBannerName:SetPoint("LEFT", 10, 0)
+
+local charBannerGold = charBanner:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+charBannerGold:SetPoint("RIGHT", -10, 0)
+
+-- Main Scroll List Panel
+local scrollFrame = CreateFrame("Frame", nil, contentPanel, "BackdropTemplate")
+scrollFrame:SetPoint("TOPLEFT", charBanner, "BOTTOMLEFT", 0, -4)
+scrollFrame:SetPoint("BOTTOMRIGHT", contentPanel, "BOTTOMRIGHT", 0, 0)
+scrollFrame:SetBackdrop(FLAT_BACKDROP)
+scrollFrame:SetBackdropColor(unpack(C_BG_PANEL))
+scrollFrame:SetBackdropBorderColor(unpack(C_BORDER))
+scroll = CreateFrame("ScrollFrame", "AlteregoContentScroll", scrollFrame, "UIPanelScrollFrameTemplate")
+scroll:SetPoint("TOPLEFT", 6, -6)
+scroll:SetPoint("BOTTOMRIGHT", -26, 6)
+local scrollContent = CreateFrame("Frame", nil, scroll)
+scrollContent:SetSize(500, 1)
+scroll:SetScrollChild(scrollContent)
+local emptyText = scrollFrame:CreateFontString(nil, "OVERLAY", "GameFontDisable")
+emptyText:SetPoint("CENTER")
+emptyText:SetText("No entries found.")
+emptyText:Hide()
+-- ===== Row Factory =====
+local rows = {}
+local function CreateRow(index)
+    local row = CreateFrame("Button", nil, scrollContent)
+    row:SetSize(500, ROW_HEIGHT)
+    row:SetPoint("TOPLEFT", scrollContent, "TOPLEFT", 0, -(index - 1) * ROW_HEIGHT)
+    row.stripe = row:CreateTexture(nil, "BACKGROUND")
+    row.stripe:SetAllPoints()
+    if index % 2 == 0 then
+        row.stripe:SetColorTexture(1, 1, 1, 0.025)
+    else
+        row.stripe:SetColorTexture(0, 0, 0, 0)
+    end
+    row.hoverTex = row:CreateTexture(nil, "HIGHLIGHT")
+    row.hoverTex:SetAllPoints()
+    row.hoverTex:SetColorTexture(0.25, 0.55, 0.95, 0.16)
+    row.icon = row:CreateTexture(nil, "ARTWORK")
+    row.icon:SetSize(19, 19)
+    row.icon:SetPoint("LEFT", row, "LEFT", 6, 0)
+    row.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    row.name = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    row.name:SetPoint("LEFT", row.icon, "RIGHT", 8, 0)
+    row.name:SetPoint("RIGHT", row, "RIGHT", -135, 0)
+    row.name:SetJustifyH("LEFT")
+    row.name:SetWordWrap(false)
+    row.value = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    row.value:SetPoint("RIGHT", row, "RIGHT", -8, 0)
+    row.value:SetJustifyH("RIGHT")
+    row:EnableMouse(true)
+    row:RegisterForClicks("LeftButtonUp")
+    row:SetScript("OnClick", function(self)
+        if IsShiftKeyDown() and self.tooltipData and self.tooltipData.itemID then
+            local _, link = GetItemInfo(self.tooltipData.itemID)
+            if link then
+                ChatEdit_InsertLink(link)
+            end
+        end
+    end)
+    row:SetScript("OnEnter", function(self)
+        if not self.tooltipData then
+            return
+        end
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        if self.tooltipData.itemID then
+            GameTooltip:SetItemByID(self.tooltipData.itemID)
+        else
+            GameTooltip:ClearLines()
+            GameTooltip:AddLine(self.tooltipData.title, 1, 0.82, 0)
+            GameTooltip:AddLine(" ")
+            GameTooltip:AddDoubleLine("Character:", self.tooltipData.charName, 0.8, 0.8, 0.8, 1, 1, 1)
+            GameTooltip:AddDoubleLine(self.tooltipData.typeLabel, self.tooltipData.value, 0.8, 0.8, 0.8, 0, 1, 0)
+            if self.tooltipData.breakdown and #self.tooltipData.breakdown > 0 then
+                GameTooltip:AddLine(" ")
+                for _, b in ipairs(self.tooltipData.breakdown) do
+                    local c = RAID_CLASS_COLORS[b.class] or NORMAL_FONT_COLOR
+                    local shortName = b.charKey:match("^([^-]+)") or b.charKey
+                    GameTooltip:AddDoubleLine(shortName, tostring(b.amount), c.r, c.g, c.b, 1, 1, 1)
+                end
+            end
+        end
+        GameTooltip:Show()
+    end)
+    row:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+    rows[index] = row
+    return row
+end
+local function AcquireRow(index)
+    return rows[index] or CreateRow(index)
+end
+-- ===== Sidebar Refresh =====
+local charButtons = {}
+local function FormatGoldCompact(copper)
+    copper = copper or 0
+    local gold = math.floor(copper / 10000)
+    local silver = math.floor((copper % 10000) / 100)
+    return string.format("%dg %ds", gold, silver)
+end
+local function RefreshSidebar()
+    if not AlteregoDB or not AlteregoDB.chars then
+        return
+    end
+    local currentChar = Alterego_GetCurrentCharKey and Alterego_GetCurrentCharKey() or ""
+    local keys = {"ALL"}
+    local totalCopper = 0
+    for k, v in pairs(AlteregoDB.chars) do
+        table.insert(keys, k)
+        totalCopper = totalCopper + (v.gold or 0)
+    end
+    table.sort(keys, function(a, b)
+        if a == b then
+            return false
+        end
+        if a == "ALL" then
+            return true
+        end
+        if b == "ALL" then
+            return false
+        end
+        if a == currentChar then
+            return true
+        end
+        if b == currentChar then
+            return false
+        end
+        return a < b
+    end)
+    totalGoldText:SetText("|cff8899aaTotal:|r " .. C_CurrencyInfo.GetCoinTextureString(totalCopper))
+    local i = 1
+    for _, key in ipairs(keys) do
+        local btn = charButtons[i]
+        if not btn then
+            btn = CreateFrame("Button", nil, sidebarContent, "BackdropTemplate")
+            btn:SetSize(147, 32)
+            btn:SetPoint("TOPLEFT", sidebarContent, "TOPLEFT", 0, -(i - 1) * 34)
+            btn:SetBackdrop(FLAT_BACKDROP)
+            btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+            btn.bar = btn:CreateTexture(nil, "OVERLAY")
+            btn.bar:SetWidth(3)
+            btn.bar:SetPoint("TOPLEFT", 1, -1)
+            btn.bar:SetPoint("BOTTOMLEFT", 1, 1)
+            btn.bar:SetColorTexture(unpack(C_ACCENT))
+            btn.bar:Hide()
+            btn.nameText = btn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            btn.nameText:SetPoint("TOPLEFT", 8, -4)
+            btn.nameText:SetPoint("RIGHT", -6, 0)
+            btn.nameText:SetJustifyH("LEFT")
+            btn.nameText:SetWordWrap(false)
+            btn.subText = btn:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+            btn.subText:SetPoint("BOTTOMLEFT", 8, 4)
+            btn.subText:SetPoint("RIGHT", -6, 0)
+            btn.subText:SetJustifyH("LEFT")
+            btn.subText:SetWordWrap(false)
+            btn:SetScript("OnEnter", function(self)
+                if AlteregoWindow.selectedChar ~= self.charKey then
+                    self:SetBackdropColor(0.11, 0.12, 0.16, 1)
+                end
+            end)
+            btn:SetScript("OnLeave", function(self)
+                if AlteregoWindow.selectedChar ~= self.charKey then
+                    self:SetBackdropColor(0.07, 0.07, 0.09, 0.8)
+                end
+            end)
+            btn:SetScript("OnClick", function(self, button)
+                if button == "RightButton" and IsShiftKeyDown() and self.charKey ~= "ALL" then
+                    pendingDeleteChar = self.charKey
+                    StaticPopup_Show("ALTEREGO_DELETE_CHAR", self.charKey)
+                    return
+                end
+                AlteregoWindow.selectedChar = self.charKey
+                if scroll then
+                    scroll:SetVerticalScroll(0)
+                end
+                RefreshSidebar()
+                AlteregoWindow.RefreshContent()
+            end)
+            charButtons[i] = btn
+        end
+        btn.charKey = key
+        local isSelected = (AlteregoWindow.selectedChar == key)
+        if key == "ALL" then
+            btn.nameText:SetText("|cffffd100All Characters|r")
+            btn.subText:SetText((#keys - 1) .. " alts tracked")
+        else
+            local charData = AlteregoDB.chars[key]
+            local c = (charData and RAID_CLASS_COLORS[charData.class]) or NORMAL_FONT_COLOR
+            local shortName = key:match("^([^-]+)") or key
+            local activePrefix = (key == currentChar) and "|cff44dd66•|r " or ""
+            btn.nameText:SetText(activePrefix .. shortName)
+            btn.nameText:SetTextColor(c.r, c.g, c.b)
+            btn.subText:SetText(string.format("Lvl %d  •  %s", charData.level or 1, FormatGoldCompact(charData.gold)))
+        end
+        if isSelected then
+            btn:SetBackdropColor(unpack(C_ACCENT_DIM))
+            btn:SetBackdropBorderColor(unpack(C_ACCENT))
+            btn.bar:Show()
+        else
+            btn:SetBackdropColor(0.07, 0.07, 0.09, 0.8)
+            btn:SetBackdropBorderColor(0.16, 0.16, 0.20, 1)
+            btn.bar:Hide()
+        end
+        btn:Show()
+        i = i + 1
+    end
+    for j = i, #charButtons do
+        charButtons[j]:Hide()
+    end
+    sidebarContent:SetHeight(math.max(1, (i - 1) * 34))
+end
+-- ===== Content Refresh =====
+local function GetFilterText()
+    local text = searchBox:GetText()
+    if text and text ~= "" then
+        return string.lower(text)
+    end
+    return nil
+end
+local function BuildAggregatedData()
+    local agg = {
+        currencies = {},
+        bags = {},
+        bank = {},
+        professions = {},
+        gold = 0,
+        isAll = true
+    }
+    for charKey, data in pairs(AlteregoDB.chars) do
+        local shortName = charKey:match("^([^-]+)") or charKey
+        local c = RAID_CLASS_COLORS[data.class] or NORMAL_FONT_COLOR
+        local hex = string.format("|cff%02x%02x%02x", c.r * 255, c.g * 255, c.b * 255)
+        local coloredAlt = hex .. shortName .. "|r"
+        agg.gold = agg.gold + (data.gold or 0)
+        for id, cur in pairs(data.currencies or {}) do
+            local key = id
+            if not agg.currencies[key] then
+                agg.currencies[key] = {
+                    name = cur.name,
+                    quantity = 0,
+                    icon = cur.icon,
+                    breakdown = {}
+                }
+            end
+            agg.currencies[key].quantity = agg.currencies[key].quantity + (cur.quantity or 0)
+            table.insert(agg.currencies[key].breakdown, {
+                charKey = charKey,
+                class = data.class,
+                amount = cur.quantity or 0
+            })
+        end
+        for itemID, item in pairs(data.bags or {}) do
+            if not agg.bags[itemID] then
+                agg.bags[itemID] = {
+                    itemID = itemID,
+                    name = item.name,
+                    icon = item.icon,
+                    quality = item.quality,
+                    count = 0
+                }
+            end
+            agg.bags[itemID].count = agg.bags[itemID].count + (item.count or 0)
+        end
+        for itemID, item in pairs(data.bank or {}) do
+            if not agg.bank[itemID] then
+                agg.bank[itemID] = {
+                    itemID = itemID,
+                    name = item.name,
+                    icon = item.icon,
+                    quality = item.quality,
+                    count = 0
+                }
+            end
+            agg.bank[itemID].count = agg.bank[itemID].count + (item.count or 0)
+        end
+        for profName, p in pairs(data.professions or {}) do
+            local label = profName .. " (" .. coloredAlt .. ")"
+            agg.professions[label] = p
+        end
+    end
+    return agg
+end
+local function RenderCurrencies(data, filter)
+    local entries = {}
+    for _, c in pairs(data.currencies or {}) do
+        if not filter or string.find(string.lower(c.name), filter, 1, true) then
+            if c.breakdown then
+                table.sort(c.breakdown, function(a, b)
+                    return a.amount > b.amount
+                end)
+            end
+            table.insert(entries, c)
+        end
+    end
+    table.sort(entries, function(a, b)
+        if sortByCount and a.quantity ~= b.quantity then
+            return a.quantity > b.quantity
+        end
+        return a.name < b.name
+    end)
+    return entries, function(c)
+        return c.name, "|cffffffff" .. tostring(c.quantity) .. "|r", c.icon, "Amount:", nil, c.breakdown
+    end
+end
+local function RenderInventory(data, filter)
+    local merged = {}
+    for itemID, item in pairs(data.bags or {}) do
+        merged[itemID] = {
+            itemID = itemID,
+            name = item.name,
+            icon = item.icon,
+            quality = item.quality,
+            bags = item.count,
+            bank = 0
+        }
+    end
+    for itemID, item in pairs(data.bank or {}) do
+        if merged[itemID] then
+            merged[itemID].bank = item.count
+        else
+            merged[itemID] = {
+                itemID = itemID,
+                name = item.name,
+                icon = item.icon,
+                quality = item.quality,
+                bags = 0,
+                bank = item.count
+            }
+        end
+    end
+    local entries = {}
+    for _, item in pairs(merged) do
+        if not filter or string.find(string.lower(item.name), filter, 1, true) then
+            item.total = item.bags + item.bank
+            table.insert(entries, item)
+        end
+    end
+    table.sort(entries, function(a, b)
+        if sortByCount and a.total ~= b.total then
+            return a.total > b.total
+        end
+        return a.name < b.name
+    end)
+    return entries, function(item)
+        local qColor = (item.quality and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[item.quality])
+        local displayName = qColor and (qColor.hex .. item.name .. "|r") or item.name
+        local val = string.format("|cffffffffx%d|r |cff8899aa(%d / %d)|r", item.total, item.bags, item.bank)
+        return displayName, val, item.icon, "Total (Bag/Bank):", item.itemID, nil
+    end
+end
+local function RenderProfessions(data, filter)
+    local entries = {}
+    local profNames = {}
+    for name in pairs(data.professions or {}) do
+        table.insert(profNames, name)
+    end
+    table.sort(profNames)
+    for _, name in ipairs(profNames) do
+        local p = data.professions[name]
+        local profMatches = not filter or string.find(string.lower(name), filter, 1, true)
+        local matchingRecipes = {}
+        for _, r in pairs(p.recipes or {}) do
+            if not filter or string.find(string.lower(r.name), filter, 1, true) then
+                table.insert(matchingRecipes, r)
+            end
+        end
+        table.sort(matchingRecipes, function(a, b)
+            return a.name < b.name
+        end)
+        if profMatches or #matchingRecipes > 0 then
+            table.insert(entries, {
+                name = "|cffffd100" .. name .. "|r",
+                value = string.format("|cff66ccff%d / %d|r", p.skill or 0, p.max or 0),
+                icon = p.icon,
+                typeLabel = "Skill:"
+            })
+            for _, r in ipairs(matchingRecipes) do
+                table.insert(entries, {
+                    name = "   " .. r.name,
+                    value = "|cff778899Recipe|r",
+                    icon = r.icon,
+                    typeLabel = name .. ":",
+                    itemID = r.itemID
+                })
+            end
+        end
+    end
+    return entries, function(e)
+        return e.name, e.value, e.icon, e.typeLabel, e.itemID, nil
+    end
+end
+function AlteregoWindow_Refresh()
+    if not AlteregoDB or not AlteregoDB.chars then
+        return
+    end
+    if not AlteregoWindow.selectedChar or
+        (AlteregoWindow.selectedChar ~= "ALL" and not AlteregoDB.chars[AlteregoWindow.selectedChar]) then
+        AlteregoWindow.selectedChar = "ALL"
+        RefreshSidebar()
+    end
+    local isAll = (AlteregoWindow.selectedChar == "ALL")
+    local data = isAll and BuildAggregatedData() or AlteregoDB.chars[AlteregoWindow.selectedChar]
+    if not data then
+        return
+    end
+    if isAll then
+        charBannerName:SetText("|cffffd100All Characters|r  |cff8899aa(Account Summary)|r")
+        charBannerGold:SetText(C_CurrencyInfo.GetCoinTextureString(data.gold or 0))
+    else
+        local c = RAID_CLASS_COLORS[data.class] or NORMAL_FONT_COLOR
+        local hex = string.format("|cff%02x%02x%02x", c.r * 255, c.g * 255, c.b * 255)
+        local seenStr = Alterego_FormatTimeAgo and Alterego_FormatTimeAgo(data.lastSeen) or ""
+        charBannerName:SetText(string.format("%s%s|r  |cff8899aaLevel %d  •  Seen: %s|r", hex,
+            AlteregoWindow.selectedChar, data.level or 1, seenStr))
+        charBannerGold:SetText(C_CurrencyInfo.GetCoinTextureString(data.gold or 0))
+    end
+    local filter = GetFilterText()
+    local entries, formatter
+    if activeTab == 1 then
+        entries, formatter = RenderCurrencies(data, filter)
+    elseif activeTab == 2 then
+        entries, formatter = RenderInventory(data, filter)
+    else
+        entries, formatter = RenderProfessions(data, filter)
+    end
+    local i = 1
+    for _, entry in ipairs(entries) do
+        local row = AcquireRow(i)
+        local name, value, icon, typeLabel, itemID, breakdown = formatter(entry)
+        row.name:SetText(name)
+        row.value:SetText(value)
+        row.icon:SetTexture(icon or 134400)
+        row.tooltipData = {
+            title = name,
+            charName = isAll and "All Characters" or AlteregoWindow.selectedChar,
+            typeLabel = typeLabel,
+            value = value,
+            itemID = itemID,
+            breakdown = breakdown
+        }
+        row:Show()
+        i = i + 1
+    end
+    emptyText:SetShown(i == 1)
+    for j = i, #rows do
+        rows[j]:Hide()
+    end
+    scrollContent:SetHeight(math.max(1, (i - 1) * ROW_HEIGHT))
+end
+-- ===== Public API =====
+AlteregoWindow = {
+    selectedChar = "ALL",
+    RefreshSidebar = RefreshSidebar,
+    RefreshContent = function()
+        AlteregoWindow_Refresh()
+    end,
+    RestorePosition = function()
+        if AlteregoDB and AlteregoDB.windowPos then
+            local pos = AlteregoDB.windowPos
+            window:ClearAllPoints()
+            window:SetPoint(pos.point, UIParent, pos.relPoint, pos.x, pos.y)
+        end
+    end,
+    Toggle = function()
+        if window:IsShown() then
+            window:Hide()
+        else
+            RefreshSidebar()
+            AlteregoWindow_Refresh()
+            window:Show()
+        end
+    end
+}
