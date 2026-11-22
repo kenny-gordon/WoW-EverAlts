@@ -2,7 +2,7 @@
 ## Title: EverAlts
 ## Notes: Alt tracker for currencies, inventory, professions, and recipes
 ## Author: Ken Gordon
-## Version: 3.5
+## Version: 0.0.1
 ## SavedVariables: AlteregoDB
 ## X-Category: Inventory
 ## IconTexture: Interface\Icons\INV_Misc_Bag_10
