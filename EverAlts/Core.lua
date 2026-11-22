@@ -163,7 +163,7 @@ local function CollectProfessions(existingProfs)
     local p1, p2, arch, fish, cook, firstAid = GetProfessions()
     local indices = {p1, p2, arch, fish, cook, firstAid}
 
-    for _, idx in ipairs(indices) do
+    for _, idx in pairs(indices) do
         if idx then
             local name, icon, skillLevel, maxLevel = GetProfessionInfo(idx)
             if name then
@@ -194,11 +194,14 @@ local function ScanOpenProfession()
     if not AlteregoDB then
         return
     end
+    AlteregoDB.chars = AlteregoDB.chars or {}
+    AlteregoDB.craftableBy = AlteregoDB.craftableBy or {}
     local charKey = Alterego_GetCurrentCharKey()
     local data = AlteregoDB.chars[charKey]
     if not data then
         return
     end
+    data.professions = data.professions or {}
 
     if C_TradeSkillUI and C_TradeSkillUI.GetAllRecipeIDs then
         local profInfo = SafeCall(C_TradeSkillUI.GetChildProfessionInfo)
@@ -214,6 +217,7 @@ local function ScanOpenProfession()
             data.professions[profName].skill = profInfo.skillLevel or data.professions[profName].skill
             data.professions[profName].max = profInfo.maxSkillLevel or data.professions[profName].max
 
+            data.professions[profName].recipes = data.professions[profName].recipes or {}
             local recipesTable = data.professions[profName].recipes
             ClearCraftableProfession(charKey, profName)
             wipe(recipesTable)
@@ -257,6 +261,7 @@ local function ScanOpenProfession()
             data.professions[profName].skill = skillLevel or data.professions[profName].skill
             data.professions[profName].max = maxSkillLevel or data.professions[profName].max
 
+            data.professions[profName].recipes = data.professions[profName].recipes or {}
             local recipesTable = data.professions[profName].recipes
             ClearCraftableProfession(charKey, profName)
             wipe(recipesTable)
@@ -301,6 +306,7 @@ local function ScanOpenProfession()
                 icon = 134400,
                 recipes = {}
             }
+            data.professions[profName].recipes = data.professions[profName].recipes or {}
             local recipesTable = data.professions[profName].recipes
             ClearCraftableProfession(charKey, profName)
             wipe(recipesTable)

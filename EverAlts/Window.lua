@@ -426,7 +426,8 @@ local function RefreshSidebar()
         local isSelected = (AlteregoWindow.selectedChar == key)
         if key == "ALL" then
             btn.nameText:SetText("|cffffffffAll Characters|r")
-            btn.subText:SetText((#keys - 1) .. " alts tracked")
+            local altCount = #keys - 1
+            btn.subText:SetText(altCount .. (altCount == 1 and " alt tracked" or " alts tracked"))
         else
             local charData = AlteregoDB.chars[key]
             local c = (charData and RAID_CLASS_COLORS[charData.class]) or NORMAL_FONT_COLOR
