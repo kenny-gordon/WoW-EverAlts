@@ -21,8 +21,8 @@ local C_BG_MAIN = {0.25, 0.25, 0.27, 1.00}
 local C_BG_PANEL = {0.12, 0.12, 0.13, 0.92}
 local C_BG_HEADER = {0.18, 0.18, 0.20, 1.00}
 local C_BORDER = {1.00, 0.82, 0.00, 0.30}
-local C_ACCENT = {1.00, 0.82, 0.00, 1.00}
-local C_ACCENT_DIM = {0.22, 0.19, 0.11, 0.95}
+local C_CONTROL_BORDER = {0.42, 0.42, 0.45, 0.75}
+local C_SELECTION = {0.76, 0.76, 0.76, 0.85}
 
 local sortByCount = false
 local pendingDeleteChar = nil
@@ -160,11 +160,11 @@ local scroll -- forward declare for scroll reset
 local function UpdateTabVisuals()
     for i, t in ipairs(tabs) do
         if i == activeTab then
-            t:GetFontString():SetTextColor(unpack(C_ACCENT))
-            t.accent:Show()
-        else
-            t.accent:Hide()
+            t:SetButtonState("PUSHED", true)
             t:GetFontString():SetTextColor(1, 1, 1)
+        else
+            t:SetButtonState("NORMAL")
+            t:GetFontString():SetTextColor(0.82, 0.82, 0.82)
         end
     end
 end
@@ -178,17 +178,11 @@ local function CreateTab(index)
         tab:SetPoint("LEFT", tabs[index - 1], "RIGHT", 4, 0)
     end
 
-    tab.accent = tab:CreateTexture(nil, "OVERLAY")
-    tab.accent:SetHeight(2)
-    tab.accent:SetPoint("BOTTOMLEFT", 1, 1)
-    tab.accent:SetPoint("BOTTOMRIGHT", -1, 1)
-    tab.accent:SetColorTexture(unpack(C_ACCENT))
-    tab.accent:Hide()
-
     tab:SetText(tabNames[index])
-    tab:SetScript("OnClick", function()
+    tab:SetScript("OnClick", function(self)
         activeTab = index
         UpdateTabVisuals()
+        self:ClearFocus()
         if scroll then
             scroll:SetVerticalScroll(0)
         end
@@ -224,6 +218,7 @@ local sortBtn = CreateFrame("Button", nil, navBar, "UIPanelButtonTemplate")
 sortBtn:SetSize(74, 24)
 sortBtn:SetPoint("RIGHT", searchBox, "LEFT", -6, 0)
 sortBtn:SetText("Sort: Name")
+sortBtn:GetFontString():SetTextColor(1, 1, 1)
 
 sortBtn:SetScript("OnClick", function(self)
     sortByCount = not sortByCount
@@ -278,7 +273,7 @@ local function CreateRow(index)
     end
     row.hoverTex = row:CreateTexture(nil, "HIGHLIGHT")
     row.hoverTex:SetAllPoints()
-    row.hoverTex:SetColorTexture(1.00, 0.82, 0.00, 0.12)
+    row.hoverTex:SetColorTexture(0.75, 0.75, 0.75, 0.10)
     row.icon = row:CreateTexture(nil, "ARTWORK")
     row.icon:SetSize(19, 19)
     row.icon:SetPoint("LEFT", row, "LEFT", 6, 0)
@@ -381,13 +376,13 @@ local function RefreshSidebar()
             btn:SetPoint("TOPLEFT", sidebarContent, "TOPLEFT", 0, -(i - 1) * 34)
             btn:SetBackdrop(NATIVE_BACKDROP)
             btn:SetBackdropColor(unpack(C_BG_PANEL))
-            btn:SetBackdropBorderColor(unpack(C_BORDER))
+            btn:SetBackdropBorderColor(unpack(C_CONTROL_BORDER))
             btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
             btn.bar = btn:CreateTexture(nil, "OVERLAY")
             btn.bar:SetWidth(3)
             btn.bar:SetPoint("TOPLEFT", 1, -1)
             btn.bar:SetPoint("BOTTOMLEFT", 1, 1)
-            btn.bar:SetColorTexture(unpack(C_ACCENT))
+            btn.bar:SetColorTexture(unpack(C_SELECTION))
             btn.bar:Hide()
             btn.nameText = btn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
             btn.nameText:SetPoint("TOPLEFT", 8, -4)
@@ -406,11 +401,11 @@ local function RefreshSidebar()
             end)
             btn:SetScript("OnLeave", function(self)
                 if AlteregoWindow.selectedChar == self.charKey then
-                    self:SetBackdropColor(unpack(C_ACCENT_DIM))
-                    self:SetBackdropBorderColor(unpack(C_ACCENT))
+                    self:SetBackdropColor(unpack(C_BG_HEADER))
+                    self:SetBackdropBorderColor(unpack(C_SELECTION))
                 else
                     self:SetBackdropColor(unpack(C_BG_PANEL))
-                    self:SetBackdropBorderColor(unpack(C_BORDER))
+                    self:SetBackdropBorderColor(unpack(C_CONTROL_BORDER))
                 end
             end)
             btn:SetScript("OnClick", function(self, button)
@@ -431,24 +426,24 @@ local function RefreshSidebar()
         btn.charKey = key
         local isSelected = (AlteregoWindow.selectedChar == key)
         if key == "ALL" then
-            btn.nameText:SetText("|cffffd100All Characters|r")
+            btn.nameText:SetText("|cffffffffAll Characters|r")
             btn.subText:SetText((#keys - 1) .. " alts tracked")
         else
             local charData = AlteregoDB.chars[key]
             local c = (charData and RAID_CLASS_COLORS[charData.class]) or NORMAL_FONT_COLOR
             local shortName = key:match("^([^-]+)") or key
-            local activePrefix = (key == currentChar) and "|cffffd100•|r " or ""
+            local activePrefix = (key == currentChar) and "|cffbfbfbf•|r " or ""
             btn.nameText:SetText(activePrefix .. shortName)
             btn.nameText:SetTextColor(c.r, c.g, c.b)
             btn.subText:SetText(string.format("Lvl %d  •  %s", charData.level or 1, FormatGoldCompact(charData.gold)))
         end
         if isSelected then
-            btn:SetBackdropColor(unpack(C_ACCENT_DIM))
-            btn:SetBackdropBorderColor(unpack(C_ACCENT))
+            btn:SetBackdropColor(unpack(C_BG_HEADER))
+            btn:SetBackdropBorderColor(unpack(C_SELECTION))
             btn.bar:Show()
         else
             btn:SetBackdropColor(unpack(C_BG_PANEL))
-            btn:SetBackdropBorderColor(unpack(C_BORDER))
+            btn:SetBackdropBorderColor(unpack(C_CONTROL_BORDER))
             btn.bar:Hide()
         end
         btn:Show()
