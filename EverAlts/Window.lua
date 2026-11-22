@@ -1,19 +1,21 @@
 local WINDOW_WIDTH, WINDOW_HEIGHT = 740, 530
 local ROW_HEIGHT = 26
 
-local FLAT_BACKDROP = {
-    bgFile = "Interface\\Buttons\\WHITE8x8",
-    edgeFile = "Interface\\Buttons\\WHITE8x8",
-    edgeSize = 1
+local NATIVE_BACKDROP = {
+    bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+    tile = true,
+    tileSize = 16,
+    edgeSize = 16,
+    insets = {left = 4, right = 4, top = 4, bottom = 4}
 }
 
--- Color Palette (Sleek ElvUI / Modern Dark Style)
-local C_BG_MAIN = {0.07, 0.07, 0.09, 0.95}
-local C_BG_PANEL = {0.05, 0.05, 0.07, 0.90}
-local C_BG_HEADER = {0.10, 0.10, 0.13, 1.00}
-local C_BORDER = {0.22, 0.23, 0.28, 1.00}
-local C_ACCENT = {0.25, 0.55, 0.95, 1.00}
-local C_ACCENT_DIM = {0.15, 0.30, 0.52, 0.55}
+local C_BG_MAIN = {0.21, 0.21, 0.23, 1.00}
+local C_BG_PANEL = {0.00, 0.00, 0.00, 0.50}
+local C_BG_HEADER = {0.12, 0.08, 0.025, 1.00}
+local C_BORDER = {1.00, 0.82, 0.00, 0.30}
+local C_ACCENT = {1.00, 0.82, 0.00, 1.00}
+local C_ACCENT_DIM = {0.32, 0.23, 0.04, 0.75}
 
 local sortByCount = false
 local pendingDeleteChar = nil
@@ -47,7 +49,7 @@ window:SetMovable(true)
 window:EnableMouse(true)
 window:SetClampedToScreen(true)
 window:SetFrameStrata("HIGH")
-window:SetBackdrop(FLAT_BACKDROP)
+window:SetBackdrop(NATIVE_BACKDROP)
 window:SetBackdropColor(unpack(C_BG_MAIN))
 window:SetBackdropBorderColor(unpack(C_BORDER))
 window:RegisterForDrag("LeftButton")
@@ -72,7 +74,7 @@ local titleBar = CreateFrame("Frame", nil, window, "BackdropTemplate")
 titleBar:SetPoint("TOPLEFT", 1, -1)
 titleBar:SetPoint("TOPRIGHT", -1, -1)
 titleBar:SetHeight(32)
-titleBar:SetBackdrop(FLAT_BACKDROP)
+titleBar:SetBackdrop(NATIVE_BACKDROP)
 titleBar:SetBackdropColor(unpack(C_BG_HEADER))
 titleBar:SetBackdropBorderColor(unpack(C_BORDER))
 
@@ -82,31 +84,13 @@ titleIcon:SetPoint("LEFT", 10, 0)
 titleIcon:SetTexture("Interface\\Icons\\INV_Misc_Bag_10")
 titleIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
-local titleText = titleBar:CreateFontString(nil, "OVERLAY", "GameFontNormalMed2")
+local titleText = titleBar:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 titleText:SetPoint("LEFT", titleIcon, "RIGHT", 8, 0)
-titleText:SetText("|cffffffffEverAlts|r  |cff778899Alt Manager|r")
+titleText:SetText("|cffffd100EverAlts|r  |cffc4c0b9Alt Manager|r")
 
--- Custom Flat Close Button
-local closeBtn = CreateFrame("Button", nil, titleBar, "BackdropTemplate")
+local closeBtn = CreateFrame("Button", nil, titleBar, "UIPanelCloseButton")
 closeBtn:SetSize(24, 24)
 closeBtn:SetPoint("RIGHT", -5, 0)
-closeBtn:SetBackdrop(FLAT_BACKDROP)
-closeBtn:SetBackdropColor(0.14, 0.14, 0.17, 1)
-closeBtn:SetBackdropBorderColor(unpack(C_BORDER))
-
-closeBtn.text = closeBtn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-closeBtn.text:SetPoint("CENTER", 0, 1)
-closeBtn.text:SetText("x")
-closeBtn.text:SetTextColor(0.8, 0.8, 0.8)
-
-closeBtn:SetScript("OnEnter", function(self)
-    self:SetBackdropColor(0.75, 0.18, 0.18, 1)
-    self.text:SetTextColor(1, 1, 1)
-end)
-closeBtn:SetScript("OnLeave", function(self)
-    self:SetBackdropColor(0.14, 0.14, 0.17, 1)
-    self.text:SetTextColor(0.8, 0.8, 0.8)
-end)
 closeBtn:SetScript("OnClick", function()
     window:Hide()
 end)
@@ -116,13 +100,13 @@ local sidebar = CreateFrame("Frame", nil, window, "BackdropTemplate")
 sidebar:SetPoint("TOPLEFT", titleBar, "BOTTOMLEFT", 8, -8)
 sidebar:SetPoint("BOTTOMLEFT", window, "BOTTOMLEFT", 9, 9)
 sidebar:SetWidth(180)
-sidebar:SetBackdrop(FLAT_BACKDROP)
+sidebar:SetBackdrop(NATIVE_BACKDROP)
 sidebar:SetBackdropColor(unpack(C_BG_PANEL))
 sidebar:SetBackdropBorderColor(unpack(C_BORDER))
 
 local sidebarHeader = sidebar:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 sidebarHeader:SetPoint("TOPLEFT", 10, -8)
-sidebarHeader:SetText("|cff8899aaCHARACTERS|r")
+sidebarHeader:SetText("|cffffd100CHARACTERS|r")
 
 local sidebarHint = sidebar:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 sidebarHint:SetPoint("TOPRIGHT", -8, -8)
@@ -132,7 +116,7 @@ local sidebarFooter = CreateFrame("Frame", nil, sidebar, "BackdropTemplate")
 sidebarFooter:SetPoint("BOTTOMLEFT", 0, 0)
 sidebarFooter:SetPoint("BOTTOMRIGHT", 0, 0)
 sidebarFooter:SetHeight(30)
-sidebarFooter:SetBackdrop(FLAT_BACKDROP)
+sidebarFooter:SetBackdrop(NATIVE_BACKDROP)
 sidebarFooter:SetBackdropColor(unpack(C_BG_HEADER))
 sidebarFooter:SetBackdropBorderColor(unpack(C_BORDER))
 
@@ -169,29 +153,23 @@ local scroll -- forward declare for scroll reset
 local function UpdateTabVisuals()
     for i, t in ipairs(tabs) do
         if i == activeTab then
-            t:SetBackdropColor(0.14, 0.22, 0.34, 1)
-            t:SetBackdropBorderColor(unpack(C_ACCENT))
+            t:GetFontString():SetTextColor(unpack(C_ACCENT))
             t.accent:Show()
-            t.label:SetTextColor(1, 1, 1)
         else
-            t:SetBackdropColor(0.08, 0.08, 0.11, 1)
-            t:SetBackdropBorderColor(unpack(C_BORDER))
             t.accent:Hide()
-            t.label:SetTextColor(0.65, 0.68, 0.75)
+            t:GetFontString():SetTextColor(1, 1, 1)
         end
     end
 end
 
 local function CreateTab(index)
-    local tab = CreateFrame("Button", "AlteregoTab" .. index, navBar, "BackdropTemplate")
+    local tab = CreateFrame("Button", "AlteregoTab" .. index, navBar, "UIPanelButtonTemplate")
     tab:SetSize(88, 26)
     if index == 1 then
         tab:SetPoint("LEFT", navBar, "LEFT", 0, 0)
     else
         tab:SetPoint("LEFT", tabs[index - 1], "RIGHT", 4, 0)
     end
-
-    tab:SetBackdrop(FLAT_BACKDROP)
 
     tab.accent = tab:CreateTexture(nil, "OVERLAY")
     tab.accent:SetHeight(2)
@@ -200,22 +178,7 @@ local function CreateTab(index)
     tab.accent:SetColorTexture(unpack(C_ACCENT))
     tab.accent:Hide()
 
-    tab.label = tab:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    tab.label:SetPoint("CENTER", 0, 1)
-    tab.label:SetText(tabNames[index])
-
-    tab:SetScript("OnEnter", function(self)
-        if activeTab ~= index then
-            self:SetBackdropColor(0.12, 0.14, 0.19, 1)
-            self.label:SetTextColor(0.9, 0.9, 0.9)
-        end
-    end)
-    tab:SetScript("OnLeave", function(self)
-        if activeTab ~= index then
-            self:SetBackdropColor(0.08, 0.08, 0.11, 1)
-            self.label:SetTextColor(0.65, 0.68, 0.75)
-        end
-    end)
+    tab:SetText(tabNames[index])
     tab:SetScript("OnClick", function()
         activeTab = index
         UpdateTabVisuals()
@@ -250,21 +213,14 @@ searchBox:SetScript("OnEscapePressed", function(self)
 end)
 
 -- Sort Toggle Button
-local sortBtn = CreateFrame("Button", nil, navBar, "BackdropTemplate")
+local sortBtn = CreateFrame("Button", nil, navBar, "UIPanelButtonTemplate")
 sortBtn:SetSize(74, 24)
 sortBtn:SetPoint("RIGHT", searchBox, "LEFT", -6, 0)
-sortBtn:SetBackdrop(FLAT_BACKDROP)
-sortBtn:SetBackdropColor(0.08, 0.08, 0.11, 1)
-sortBtn:SetBackdropBorderColor(unpack(C_BORDER))
-
-sortBtn.label = sortBtn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-sortBtn.label:SetPoint("CENTER")
-sortBtn.label:SetText("Sort: Name")
-sortBtn.label:SetTextColor(0.8, 0.85, 0.9)
+sortBtn:SetText("Sort: Name")
 
 sortBtn:SetScript("OnClick", function(self)
     sortByCount = not sortByCount
-    self.label:SetText(sortByCount and "Sort: Qty" or "Sort: Name")
+    self:SetText(sortByCount and "Sort: Qty" or "Sort: Name")
     AlteregoWindow.RefreshContent()
 end)
 
@@ -273,7 +229,7 @@ local charBanner = CreateFrame("Frame", nil, contentPanel, "BackdropTemplate")
 charBanner:SetPoint("TOPLEFT", navBar, "BOTTOMLEFT", 0, -6)
 charBanner:SetPoint("TOPRIGHT", navBar, "BOTTOMRIGHT", 0, -6)
 charBanner:SetHeight(28)
-charBanner:SetBackdrop(FLAT_BACKDROP)
+charBanner:SetBackdrop(NATIVE_BACKDROP)
 charBanner:SetBackdropColor(unpack(C_BG_HEADER))
 charBanner:SetBackdropBorderColor(unpack(C_BORDER))
 
@@ -287,7 +243,7 @@ charBannerGold:SetPoint("RIGHT", -10, 0)
 local scrollFrame = CreateFrame("Frame", nil, contentPanel, "BackdropTemplate")
 scrollFrame:SetPoint("TOPLEFT", charBanner, "BOTTOMLEFT", 0, -4)
 scrollFrame:SetPoint("BOTTOMRIGHT", contentPanel, "BOTTOMRIGHT", 0, 0)
-scrollFrame:SetBackdrop(FLAT_BACKDROP)
+scrollFrame:SetBackdrop(NATIVE_BACKDROP)
 scrollFrame:SetBackdropColor(unpack(C_BG_PANEL))
 scrollFrame:SetBackdropBorderColor(unpack(C_BORDER))
 scroll = CreateFrame("ScrollFrame", "AlteregoContentScroll", scrollFrame, "UIPanelScrollFrameTemplate")
@@ -315,7 +271,7 @@ local function CreateRow(index)
     end
     row.hoverTex = row:CreateTexture(nil, "HIGHLIGHT")
     row.hoverTex:SetAllPoints()
-    row.hoverTex:SetColorTexture(0.25, 0.55, 0.95, 0.16)
+    row.hoverTex:SetColorTexture(1.00, 0.82, 0.00, 0.12)
     row.icon = row:CreateTexture(nil, "ARTWORK")
     row.icon:SetSize(19, 19)
     row.icon:SetPoint("LEFT", row, "LEFT", 6, 0)
@@ -408,16 +364,20 @@ local function RefreshSidebar()
         end
         return a < b
     end)
-    totalGoldText:SetText("|cff8899aaTotal:|r " .. C_CurrencyInfo.GetCoinTextureString(totalCopper))
+    totalGoldText:SetText("|cffc4c0b9Total:|r " .. C_CurrencyInfo.GetCoinTextureString(totalCopper))
     local i = 1
     for _, key in ipairs(keys) do
         local btn = charButtons[i]
         if not btn then
-            btn = CreateFrame("Button", nil, sidebarContent, "BackdropTemplate")
+            btn = CreateFrame("Button", nil, sidebarContent, "UIPanelButtonTemplate")
             btn:SetSize(147, 32)
             btn:SetPoint("TOPLEFT", sidebarContent, "TOPLEFT", 0, -(i - 1) * 34)
-            btn:SetBackdrop(FLAT_BACKDROP)
+            btn:SetText("")
             btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+            btn.selectedBg = btn:CreateTexture(nil, "BACKGROUND")
+            btn.selectedBg:SetAllPoints()
+            btn.selectedBg:SetColorTexture(unpack(C_ACCENT_DIM))
+            btn.selectedBg:Hide()
             btn.bar = btn:CreateTexture(nil, "OVERLAY")
             btn.bar:SetWidth(3)
             btn.bar:SetPoint("TOPLEFT", 1, -1)
@@ -434,16 +394,6 @@ local function RefreshSidebar()
             btn.subText:SetPoint("RIGHT", -6, 0)
             btn.subText:SetJustifyH("LEFT")
             btn.subText:SetWordWrap(false)
-            btn:SetScript("OnEnter", function(self)
-                if AlteregoWindow.selectedChar ~= self.charKey then
-                    self:SetBackdropColor(0.11, 0.12, 0.16, 1)
-                end
-            end)
-            btn:SetScript("OnLeave", function(self)
-                if AlteregoWindow.selectedChar ~= self.charKey then
-                    self:SetBackdropColor(0.07, 0.07, 0.09, 0.8)
-                end
-            end)
             btn:SetScript("OnClick", function(self, button)
                 if button == "RightButton" and IsShiftKeyDown() and self.charKey ~= "ALL" then
                     pendingDeleteChar = self.charKey
@@ -468,18 +418,16 @@ local function RefreshSidebar()
             local charData = AlteregoDB.chars[key]
             local c = (charData and RAID_CLASS_COLORS[charData.class]) or NORMAL_FONT_COLOR
             local shortName = key:match("^([^-]+)") or key
-            local activePrefix = (key == currentChar) and "|cff44dd66•|r " or ""
+            local activePrefix = (key == currentChar) and "|cffffd100•|r " or ""
             btn.nameText:SetText(activePrefix .. shortName)
             btn.nameText:SetTextColor(c.r, c.g, c.b)
             btn.subText:SetText(string.format("Lvl %d  •  %s", charData.level or 1, FormatGoldCompact(charData.gold)))
         end
         if isSelected then
-            btn:SetBackdropColor(unpack(C_ACCENT_DIM))
-            btn:SetBackdropBorderColor(unpack(C_ACCENT))
+            btn.selectedBg:Show()
             btn.bar:Show()
         else
-            btn:SetBackdropColor(0.07, 0.07, 0.09, 0.8)
-            btn:SetBackdropBorderColor(0.16, 0.16, 0.20, 1)
+            btn.selectedBg:Hide()
             btn.bar:Hide()
         end
         btn:Show()
@@ -625,7 +573,7 @@ local function RenderInventory(data, filter)
     return entries, function(item)
         local qColor = (item.quality and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[item.quality])
         local displayName = qColor and (qColor.hex .. item.name .. "|r") or item.name
-        local val = string.format("|cffffffffx%d|r |cff8899aa(%d / %d)|r", item.total, item.bags, item.bank)
+        local val = string.format("|cffffffffx%d|r |cffc4c0b9(%d / %d)|r", item.total, item.bags, item.bank)
         return displayName, val, item.icon, "Total (Bag/Bank):", item.itemID, nil
     end
 end
@@ -651,14 +599,14 @@ local function RenderProfessions(data, filter)
         if profMatches or #matchingRecipes > 0 then
             table.insert(entries, {
                 name = "|cffffd100" .. name .. "|r",
-                value = string.format("|cff66ccff%d / %d|r", p.skill or 0, p.max or 0),
+                value = string.format("|cffffffff%d / %d|r", p.skill or 0, p.max or 0),
                 icon = p.icon,
                 typeLabel = "Skill:"
             })
             for _, r in ipairs(matchingRecipes) do
                 table.insert(entries, {
                     name = "   " .. r.name,
-                    value = "|cff778899Recipe|r",
+                    value = "|cffc4c0b9Recipe|r",
                     icon = r.icon,
                     typeLabel = name .. ":",
                     itemID = r.itemID
@@ -685,13 +633,13 @@ function AlteregoWindow_Refresh()
         return
     end
     if isAll then
-        charBannerName:SetText("|cffffd100All Characters|r  |cff8899aa(Account Summary)|r")
+        charBannerName:SetText("|cffffd100All Characters|r  |cffc4c0b9(Account Summary)|r")
         charBannerGold:SetText(C_CurrencyInfo.GetCoinTextureString(data.gold or 0))
     else
         local c = RAID_CLASS_COLORS[data.class] or NORMAL_FONT_COLOR
         local hex = string.format("|cff%02x%02x%02x", c.r * 255, c.g * 255, c.b * 255)
         local seenStr = Alterego_FormatTimeAgo and Alterego_FormatTimeAgo(data.lastSeen) or ""
-        charBannerName:SetText(string.format("%s%s|r  |cff8899aaLevel %d  •  Seen: %s|r", hex,
+        charBannerName:SetText(string.format("%s%s|r  |cffc4c0b9Level %d  •  Seen: %s|r", hex,
             AlteregoWindow.selectedChar, data.level or 1, seenStr))
         charBannerGold:SetText(C_CurrencyInfo.GetCoinTextureString(data.gold or 0))
     end
