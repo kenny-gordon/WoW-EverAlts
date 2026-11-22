@@ -11,7 +11,7 @@ local NATIVE_BACKDROP = {
 }
 
 local C_BG_MAIN = {0.21, 0.21, 0.23, 1.00}
-local C_BG_PANEL = {0.00, 0.00, 0.00, 0.50}
+local C_BG_PANEL = {0.00, 0.00, 0.00, 0.72}
 local C_BG_HEADER = {0.12, 0.08, 0.025, 1.00}
 local C_BORDER = {1.00, 0.82, 0.00, 0.30}
 local C_ACCENT = {1.00, 0.82, 0.00, 1.00}
@@ -265,7 +265,7 @@ local function CreateRow(index)
     row.stripe = row:CreateTexture(nil, "BACKGROUND")
     row.stripe:SetAllPoints()
     if index % 2 == 0 then
-        row.stripe:SetColorTexture(1, 1, 1, 0.025)
+        row.stripe:SetColorTexture(1, 1, 1, 0.04)
     else
         row.stripe:SetColorTexture(0, 0, 0, 0)
     end
@@ -374,8 +374,9 @@ local function RefreshSidebar()
             btn:SetPoint("TOPLEFT", sidebarContent, "TOPLEFT", 0, -(i - 1) * 34)
             btn:SetText("")
             btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-            btn.selectedBg = btn:CreateTexture(nil, "BACKGROUND")
-            btn.selectedBg:SetAllPoints()
+            btn.selectedBg = btn:CreateTexture(nil, "ARTWORK")
+            btn.selectedBg:SetPoint("TOPLEFT", 4, -4)
+            btn.selectedBg:SetPoint("BOTTOMRIGHT", -4, 4)
             btn.selectedBg:SetColorTexture(unpack(C_ACCENT_DIM))
             btn.selectedBg:Hide()
             btn.bar = btn:CreateTexture(nil, "OVERLAY")
